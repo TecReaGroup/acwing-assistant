@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACWing视频播放器</title>
+    <style>
+        /* Basic Reset & Dark Theme */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #121212; /* Dark background */
+            color: #e0e0e0; /* Light text */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        .app-container {
+            display: flex;
+            width: 95vw; /* Adjust width as needed */
+            height: 90vh; /* Adjust height as needed */
+            max-width: 1600px;
+            background-color: #1a1a1a; /* Slightly lighter container background */
+            border-radius: 8px;
+            overflow: hidden; /* Clip children */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Main Content Area (Video) */
+        .main-content {
+            flex: 3; /* Takes up more space */
+            display: flex;
+            flex-direction: column;
+            background-color: #000; /* Black background for video area */
+        }
+
+        .video-player-area {
+            flex-grow: 1; /* Takes available vertical space */
+            position: relative; /* For overlay positioning */
+            background-color: #000;
+            display: flex; /* Center video */
+            justify-content: center;
+            align-items: center;
+        }
+
+        #main-video {
+            display: block;
+            max-width: 100%;
+            max-height: 100%; /* Ensure video fits */
+            width: 100%; /* Default width */
+            height: auto; /* Maintain aspect ratio */
+            background-color: #000;
+        }
+
+        /* Initially hide video if no src */
+        #main-video:not([src]) {
+            display: none;
+        }
+        /* Show overlay when video has no src */
+        #main-video:not([src]) + .video-overlay {
+            display: flex;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent overlay */
+            display: none; /* Hidden by default, shown via rule above */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            text-align: center;
+            z-index: 10; /* Above the video element */
+        }
+
+        .video-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            background-color: #6200ea; /* Purple accent */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #3700b3;
+        }
+
+        /* 问题集按钮 */
+        .problems-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background-color: #6200ea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .problems-button:hover {
+            background-color: #3700b3;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            flex: 1; /* Takes less space */
+            min-width: 320px; /* Minimum width */
+            max-width: 400px; /* Maximum width */
+            background-color: #1e1e1e; /* Sidebar background */
+            padding: 20px 0px 20px 20px; /* Add padding, zero on right for scrollbar */
+            overflow-y: auto; /* Enable scrolling */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-right: 20px;
+        }
+
+        .sidebar h2 {
+            font-size: 1.1rem;
+            padding-left: 10px; /* Align with items */
+            color: #ccc;
+        }
+
+        .sidebar-search {
+            margin-bottom: 15px;
+            padding-right: 20px;
+            position: relative;
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            padding: 8px 10px;
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+
+        .sidebar-search input::placeholder {
+            color: #777;
+        }
+
+        /* Course Categories */
+        .course-category {
+            margin-bottom: 15px;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 20px;
+        }
+
+        .category-header:hover {
+            background-color: #333;
+        }
+
+        .category-name {
+            flex-grow: 1;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #ccc;
+        }
+
+        .toggle-icon {
+            margin-right: 5px;
+            width: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .courses-container {
+            margin-top: 5px;
+            margin-left: 10px;
+            display: block; /* Default visible */
+        }
+
+        .collapsed .courses-container {
+            display: none; /* Hide when collapsed */
+        }
+
+        /* Course */
+        .course {
+            margin: 5px 0;
+            margin-right: 20px;
+        }
+
+        .course-header {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            background-color: #2d2d2d;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .course-header:hover {
+            background-color: #333;
+        }
+
+        .course-name {
+            flex-grow: 1;
+            font-size: 0.9rem;
+            color: #bbb;
+        }
+
+        .videos-container {
+            margin-left: 15px;
+            margin-top: 3px;
+            display: block; /* Default visible */
+        }
+
+        .course.collapsed .videos-container {
+            display: none; /* Hide when collapsed */
+        }
+
+        /* Navigation Items */
+        #navigation-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 20px 0 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: flex-start; /* Align items to the top */
+            padding: 8px 10px;
+            margin-bottom: 2px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            background-color: #333;
+        }
+
+        .nav-item.active {
+            background-color: #3a3a5a; /* Active item background (purplish) */
+        }
+
+        .video-details {
+            flex-grow: 1;
+        }
+
+        .video-title {
+            font-size: 0.9rem;
+            color: #e0e0e0;
+            display: block;
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        /* Now playing indicator */
+        .now-playing {
+            display: none;
+            font-size: 0.8rem;
+            color: #8a8aff;
+            margin-left: 10px;
+        }
+
+        .nav-item.active .now-playing {
+            display: inline;
+        }
+
+        /* Custom Scrollbar for Webkit Browsers */
+        .sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #1e1e1e;
+            border-radius: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 4px;
+            border: 2px solid #1e1e1e;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background-color: #777;
+        }
+
+        /* Save Notes Indicator */
+        .save-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: rgba(40, 167, 69, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: opacity 0.5s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Content Area (Video) -->
+        <div class="main-content">
+            <div class="video-player-area">
+                <!-- 问题集按钮 - 添加 target="_blank" 以在新页面打开 -->
+                <a href="./problems.md" class="problems-button" target="_blank">问题集</a>
+                
+                <video id="main-video" controls>
+                    <!-- Fallback text -->
+                    您的浏览器不支持 HTML5 视频。
+                </video>
+                <div class="video-overlay">
+                    <h2 style="margin-bottom: 20px;">ACWing 算法全家桶视频播放器</h2>
+                    <div class="video-buttons">
+                        <label for="video-upload" class="btn">选择单个视频文件</label>
+                        <input type="file" id="video-upload" accept="video/*" style="display: none;">
+                        
+                        <div class="btn" id="browse-directory">浏览 ACWing 目录</div>
+                    </div>
+                </div>
+                <div id="save-indicator" class="save-indicator">笔记已保存</div>
+            </div>
+        </div>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>视频目录</h2>
+            </div>
+            <div class="sidebar-search">
+                <input type="text" id="search-input" placeholder="搜索视频...">
+            </div>
+            
+            <!-- Course Categories -->
+            <div class="courses-structure">
+                <!-- 语法课基础 -->
+                <div class="course-category collapsed" id="category-syntax">
+                    <div class="category-header">
+                        <span class="toggle-icon">▼</span>
+                        <span class="category-name">语法课基础</span>
+                    </div>
+                    <div class="courses-container">
+                        <ul class="videos-list">
+                            <!-- 语法课视频将通过 JavaScript 动态生成 -->
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- 算法基础课 -->
+                <div class="course-category collapsed" id="category-basic">
+                    <div class="category-header">
+                        <span class="toggle-icon">▼</span>
+                        <span class="category-name">算法基础课</span>
+                    </div>
+                    <div class="courses-container">
+                        <ul class="videos-list">
+                            <!-- 算法基础课视频将通过 JavaScript 动态生成 -->
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- 算法提高课 -->
+                <div class="course-category collapsed" id="category-advanced">
+                    <div class="category-header">
+                        <span class="toggle-icon">▼</span>
+                        <span class="category-name">算法提高课</span>
+                    </div>
+                    <div class="courses-container">
+                        <!-- 动态规划 -->
+                        <div class="course collapsed">
+                            <div class="course-header">
+                                <span class="toggle-icon">▼</span>
+                                <span class="course-name">第一章 动态规划</span>
+                            </div>
+                            <ul class="videos-container">
+                                <!-- 第一章动态规划视频将通过 JavaScript 动态生成 -->
+                            </ul>
+                        </div>
+                        
+                        <!-- 搜索 -->
+                        <div class="course collapsed">
+                            <div class="course-header">
+                                <span class="toggle-icon">▼</span>
+                                <span class="course-name">第二章 搜索</span>
+                            </div>
+                            <ul class="videos-container">
+                                <!-- 第二章搜索视频将通过 JavaScript 动态生成 -->
+                            </ul>
+                        </div>
+                        
+                        <!-- 图论 -->
+                        <div class="course collapsed">
+                            <div class="course-header">
+                                <span class="toggle-icon">▼</span>
+                                <span class="course-name">第三章 图论</span>
+                            </div>
+                            <ul class="videos-container">
+                                <!-- 第三章图论视频将通过 JavaScript 动态生成 -->
+                            </ul>
+                        </div>
+                        
+                        <!-- 数据结构 -->
+                        <div class="course collapsed">
+                            <div class="course-header">
+                                <span class="toggle-icon">▼</span>
+                                <span class="course-name">第四章 数据结构</span>
+                            </div>
+                            <ul class="videos-container">
+                                <!-- 第四章数据结构视频将通过 JavaScript 动态生成 -->
+                            </ul>
+                        </div>
+                        
+                        <!-- 数学知识 -->
+                        <div class="course collapsed">
+                            <div class="course-header">
+                                <span class="toggle-icon">▼</span>
+                                <span class="course-name">第五章 数学知识</span>
+                            </div>
+                            <ul class="videos-container">
+                                <!-- 第五章数学知识视频将通过 JavaScript 动态生成 -->
+                            </ul>
+                        </div>
+                        
+                        <!-- 基础算法 -->
+                        <div class="course collapsed">
+                            <div class="course-header">
+                                <span class="toggle-icon">▼</span>
+                                <span class="course-name">第六章 基础算法</span>
+                            </div>
+                            <ul class="videos-container">
+                                <!-- 第六章基础算法视频将通过 JavaScript 动态生成 -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 算法进阶课 -->
+                <div class="course-category collapsed" id="category-expert">
+                    <div class="category-header">
+                        <span class="toggle-icon">▼</span>
+                        <span class="category-name">算法进阶课</span>
+                    </div>
+                    <div class="courses-container">
+                        <!-- 进阶课内容将动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const videoPlayer = document.getElementById('main-video');
+            const videoUpload = document.getElementById('video-upload');
+            const videoOverlay = document.querySelector('.video-overlay');
+            const uploadButton = document.querySelector('label[for="video-upload"]');
+            const browseDirectoryButton = document.getElementById('browse-directory');
+            const searchInput = document.getElementById('search-input');
+            const saveIndicator = document.getElementById('save-indicator');
+            
+            // Video Library Data Structure
+            const videoLibrary = {
+                currentVideo: null,
+                baseDirectory: './AcWing算法全家桶',  // 相对路径
+                videoNotes: {}, // 用于存储笔记, 格式: { "视频路径": "笔记内容" }
+                
+                // 视频库数据 - 将通过函数生成
+                syntax: [],    // 语法课
+                basic: [],     // 算法基础课
+                advanced: {    // 算法提高课
+                    dp: [],          // 动态规划
+                    search: [],      // 搜索
+                    graph: [],       // 图论
+                    dataStructure: [], // 数据结构
+                    math: [],        // 数学知识
+                    basicAlgo: []    // 基础算法
+                },
+                expert: {      // 算法进阶课
+                    graph: [],
+                    dataStructure: [],
+                    dp: [],
+                    geometry: [],
+                    math: [],
+                    search: [],
+                    basicAlgo: []
+                }
+            };
+            
+            // 初始化函数
+            function init() {
+                // 设置视频数据
+                setupVideoData();
+                
+                // 渲染侧边栏
+                renderSidebar();
+                
+                // 从本地存储加载笔记数据
+                loadNotesFromLocalStorage();
+                
+                // 添加事件监听
+                setupEventListeners();
+            }
+            
+            // 设置视频数据
+            function setupVideoData() {
+                // 语法课基础
+                videoLibrary.syntax = [
+                    { 
+                        path: 'language/1.1 变量、输入输出、表达式和顺序语句.mp4', 
+                        title: '1.1 变量、输入输出、表达式和顺序语句'
+                    },
+                    { 
+                        path: 'language/1.1习题及1.2 判断语句.mp4', 
+                        title: '1.1习题及1.2 判断语句' 
+                    },
+                    { 
+                        path: 'language/1.2 判断语句.mp4', 
+                        title: '1.2 判断语句'
+                    },
+                    { 
+                        path: 'language/1.2 习题 及 1.3 循环语句.mp4', 
+                        title: '1.2 习题 及 1.3 循环语句'
+                    },
+                    { 
+                        path: 'language/1.3 循环结构.mp4', 
+                        title: '1.3 循环结构'
+                    },
+                    { 
+                        path: 'language/1.3 习题 及 1.4 数组.mp4', 
+                        title: '1.3 习题 及 1.4 数组'
+                    },
+                    { 
+                        path: 'language/1.4 数组.mp4', 
+                        title: '1.4 数组'
+                    },
+                    { 
+                        path: 'language/1.4 习题 及 1.5 字符串.mp4', 
+                        title: '1.4 习题 及 1.5 字符串'
+                    },
+                    { 
+                        path: 'language/1.5 字符串.mp4', 
+                        title: '1.5 字符串'
+                    },
+                    { 
+                        path: 'language/1.5 习题 及 1.6 函数.mp4', 
+                        title: '1.5 习题 及 1.6 函数'
+                    },
+                    { 
+                        path: 'language/1.6 函数.mp4', 
+                        title: '1.6 函数'
+                    },
+                    { 
+                        path: 'language/1.6 习题 及 1.7 类、结构体、指针与引用.mp4', 
+                        title: '1.6 习题 及 1.7 类、结构体、指针与引用'
+                    },
+                    { 
+                        path: 'language/1.7 类、结构体、指针和引用.mp4', 
+                        title: '1.7 类、结构体、指针和引用'
+                    },
+                    { 
+                        path: 'language/1.7 习题 及 1.8 STL、位运算、常用库函数.mp4', 
+                        title: '1.7 习题 及 1.8 STL、位运算、常用库函数'
+                    },
+                    { 
+                        path: 'language/1.8 STL、位运算、常用库函数.mp4', 
+                        title: '1.8 STL、位运算、常用库函数'
+                    }
+                ];
+                
+                // 算法基础课
+                videoLibrary.basic = [
+                    { 
+                        path: 'basic/01-第一章 基础算法（一）.mp4', 
+                        title: '第一章 基础算法（一）'
+                    },
+                    { 
+                        path: 'basic/01-第一章 基础算法（二）.mp4', 
+                        title: '第一章 基础算法（二）'
+                    },
+                    { 
+                        path: 'basic/01-第一章 基础算法（三）.mp4', 
+                        title: '第一章 基础算法（三）'
+                    },
+                    { 
+                        path: 'basic/01-基础算法课-习题课.mp4', 
+                        title: '基础算法课-习题课'
+                    },
+                    { 
+                        path: 'basic/02-第二章 数据结构（一）.mp4', 
+                        title: '第二章 数据结构（一）'
+                    },
+                    { 
+                        path: 'basic/02-第二章 数据结构（二）.mp4', 
+                        title: '第二章 数据结构（二）'
+                    },
+                    { 
+                        path: 'basic/02-第二章 数据结构（三）.mp4', 
+                        title: '第二章 数据结构（三）'
+                    },
+                    { 
+                        path: 'basic/02-基础算法课-习题课.mp4', 
+                        title: '数据结构-习题课'
+                    },
+                    { 
+                        path: 'basic/03-第三章 搜索与图论（一）.mp4', 
+                        title: '第三章 搜索与图论（一）'
+                    },
+                    { 
+                        path: 'basic/03-第三章 搜索与图论（二）.mp4', 
+                        title: '第三章 搜索与图论（二）'
+                    },
+                    { 
+                        path: 'basic/03-第三章 搜索与图论（三）.mp4', 
+                        title: '第三章 搜索与图论（三）'
+                    },
+                    { 
+                        path: 'basic/03-基础算法课-习题课.mp4', 
+                        title: '搜索与图论-习题课'
+                    },
+                    { 
+                        path: 'basic/04-第四章 数学知识（一）.mp4', 
+                        title: '第四章 数学知识（一）'
+                    },
+                    { 
+                        path: 'basic/04-第四章 数学知识（二）.mp4', 
+                        title: '第四章 数学知识（二）'
+                    },
+                    { 
+                        path: 'basic/04-第四章 数学知识（三）.mp4', 
+                        title: '第四章 数学知识（三）'
+                    },
+                    { 
+                        path: 'basic/04-第四章 数学知识（四）.mp4', 
+                        title: '第四章 数学知识（四）'
+                    },
+                    { 
+                        path: 'basic/04-基础算法课-习题课.mp4', 
+                        title: '数学知识-习题课'
+                    },
+                    { 
+                        path: 'basic/05-第五章 动态规划（一）.mp4', 
+                        title: '第五章 动态规划（一）'
+                    },
+                    { 
+                        path: 'basic/05-第五章 动态规划（二）.mp4', 
+                        title: '第五章 动态规划（二）'
+                    },
+                    { 
+                        path: 'basic/05-第五章 动态规划（三）.mp4', 
+                        title: '第五章 动态规划（三）'
+                    },
+                    { 
+                        path: 'basic/05-基础算法课-习题课.mp4', 
+                        title: '动态规划-习题课'
+                    },
+                    { 
+                        path: 'basic/06-第六章 贪心算法（一）.mp4', 
+                        title: '第六章 贪心算法（一）'
+                    },
+                    { 
+                        path: 'basic/06-第六章 贪心算法（二）.mp4', 
+                        title: '第六章 贪心算法（二）'
+                    },
+                    { 
+                        path: 'basic/06-第六章 习题课（三）.mp4', 
+                        title: '贪心算法-习题课'
+                    },
+                    { 
+                        path: 'basic/07-第七章 时空复杂度分析.mp4', 
+                        title: '第七章 时空复杂度分析'
+                    },
+                    { 
+                        path: 'basic/07-算法基础课-习题课.mp4', 
+                        title: '时空复杂度-习题课'
+                    },
+                ];
+                
+                // 算法提高课
+                // 第一章 动态规划
+                videoLibrary.advanced.dp = [
+                    { 
+                        path: 'advanced/第一章 动态规划/1.1 数字三角形模型.mp4', 
+                        title: '1.1 数字三角形模型'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.2.1 最长上升子序列模型（一）.mp4', 
+                        title: '1.2.1 最长上升子序列模型（一）'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.2.2 最长上升子序列模型（二）.mp4', 
+                        title: '1.2.2 最长上升子序列模型（二）'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.3.1 背包模型（一）.mp4', 
+                        title: '1.3.1 背包模型（一）'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.3.2 背包模型（二）.mp4', 
+                        title: '1.3.2 背包模型（二）'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.3.3 背包模型（三）.mp4', 
+                        title: '1.3.3 背包模型（三）'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.3.4 背包模型（四）.mp4', 
+                        title: '1.3.4 背包模型（四）'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.4 状态机模型.mp4', 
+                        title: '1.4 状态机模型'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.5 状态压缩DP.mp4', 
+                        title: '1.5 状态压缩DP'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.6 区间DP.mp4', 
+                        title: '1.6 区间DP'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.7 树形DP.mp4', 
+                        title: '1.7 树形DP'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.8 数位DP.mp4', 
+                        title: '1.8 数位DP'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.9 单调队列优化的DP问题.mp4', 
+                        title: '1.9 单调队列优化的DP问题'
+                    },
+                    { 
+                        path: 'advanced/第一章 动态规划/1.10 斜率优化的DP问题.mp4', 
+                        title: '1.10 斜率优化的DP问题'
+                    }
+                ];
+                
+                // 第二章 搜索
+                videoLibrary.advanced.search = [
+                    { 
+                        path: 'advanced/第二章 搜索/2.1.1 BFS中的Flood Fill和最短路模型.mp4', 
+                        title: '2.1.1 BFS中的Flood Fill和最短路模型'
+                    },
+                    { 
+                        path: 'advanced/第二章 搜索/2.1.2 BFS中的多源BFS-双端队列BFS.mp4', 
+                        title: '2.1.2 BFS中的多源BFS-双端队列BFS'
+                    },
+                    { 
+                        path: 'advanced/第二章 搜索/2.1.3 BFS中的双向广搜和A-star.mp4', 
+                        title: '2.1.3 BFS中的双向广搜和A-star'
+                    },
+                    { 
+                        path: 'advanced/第二章 搜索/2.2.1 DFS中的连通性和搜索顺序.mp4', 
+                        title: '2.2.1 DFS中的连通性和搜索顺序'
+                    },
+                    { 
+                        path: 'advanced/第二章 搜索/2.2.2 DFS之剪枝.mp4', 
+                        title: '2.2.2 DFS之剪枝'
+                    },
+                    { 
+                        path: 'advanced/第二章 搜索/2.2.3 DFS之迭代加深、双向DFS、IDA.mp4', 
+                        title: '2.2.3 DFS之迭代加深、双向DFS、IDA'
+                    }
+                ];
+                
+                // 第三章 图论
+                videoLibrary.advanced.graph = [
+                    { 
+                        path: 'advanced/第三章 图论/3.1.1 单源最短路的建图方式.mp4', 
+                        title: '3.1.1 单源最短路的建图方式'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.1.2 单源最短路的综合应用.mp4', 
+                        title: '3.1.2 单源最短路的综合应用'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.1.3 单源最短路的扩展应用.mp4', 
+                        title: '3.1.3 单源最短路的扩展应用'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.2 floyd算法及其扩展应用.mp4', 
+                        title: '3.2 floyd算法及其扩展应用'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.3.1 最小生成树的典型应用.mp4', 
+                        title: '3.3.1 最小生成树的典型应用'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.3.2 最小生成树的扩展应用.mp4', 
+                        title: '3.3.2 最小生成树的扩展应用'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.4 SPFA找负环.mp4', 
+                        title: '3.4 SPFA找负环'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.5 差分约束.mp4', 
+                        title: '3.5 差分约束'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.6 最近公共祖先.mp4', 
+                        title: '3.6 最近公共祖先'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.7 有向图的强连通分量.mp4', 
+                        title: '3.7 有向图的强连通分量'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.8 无向图的双连通分量1.mp4', 
+                        title: '3.8 无向图的双连通分量'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.9 二分图.mp4', 
+                        title: '3.9 二分图'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.10 欧拉路径和欧拉回路.mp4', 
+                        title: '3.10 欧拉路径和欧拉回路'
+                    },
+                    { 
+                        path: 'advanced/第三章 图论/3.11 拓扑排序.mp4', 
+                        title: '3.11 拓扑排序'
+                    }
+                ];
+                
+                // 第四章 数据结构
+                videoLibrary.advanced.dataStructure = [
+                    { 
+                        path: 'advanced/第四章 数据结构/4.1 并查集.mp4', 
+                        title: '4.1 并查集'
+                    },
+                    { 
+                        path: 'advanced/第四章 数据结构/4.2 树状数组.mp4', 
+                        title: '4.2 树状数组'
+                    },
+                    { 
+                        path: 'advanced/第四章 数据结构/4.3.1 线段树（一）.mp4', 
+                        title: '4.3.1 线段树（一）'
+                    },
+                    { 
+                        path: 'advanced/第四章 数据结构/4.3.2 线段树（二）.mp4', 
+                        title: '4.3.2 线段树（二）'
+                    },
+                    { 
+                        path: 'advanced/第四章 数据结构/4.4 可持久化数据结构.mp4', 
+                        title: '4.4 可持久化数据结构'
+                    },
+                    { 
+                        path: 'advanced/第四章 数据结构/4.5 平衡树——Treap.mp4', 
+                        title: '4.5 平衡树——Treap'
+                    },
+                    { 
+                        path: 'advanced/第四章 数据结构/4.6 AC自动机.mp4', 
+                        title: '4.6 AC自动机'
+                    }
+                ];
+                
+                // 第五章 数学知识
+                videoLibrary.advanced.math = [
+                    { 
+                        path: 'advanced/第五章 数学知识/5.1 筛质数、分解质因数和快速幂.mp4', 
+                        title: '5.1 筛质数、分解质因数和快速幂'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.2 约数个数与欧拉函数.mp4', 
+                        title: '5.2 约数个数与欧拉函数'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.3 同余和矩阵乘法.mp4', 
+                        title: '5.3 同余和矩阵乘法'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.4 矩阵乘法和组合计数（一）.mp4', 
+                        title: '5.4 矩阵乘法和组合计数（一）'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.5 组合计数（二）.mp4', 
+                        title: '5.5 组合计数（二）'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.6 组合计数（三）和高斯消元.mp4', 
+                        title: '5.6 组合计数（三）和高斯消元'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.7 容斥原理、概率与数学期望.mp4', 
+                        title: '5.7 容斥原理、概率与数学期望'
+                    },
+                    { 
+                        path: 'advanced/第五章 数学知识/5.8 博弈论.mp4', 
+                        title: '5.8 博弈论'
+                    }
+                ];
+                
+                // 第六章 基础算法
+                videoLibrary.advanced.basicAlgo = [
+                    { 
+                        path: 'advanced/第六章 基础算法/6.1 位运算、递推与递归.mp4', 
+                        title: '6.1 位运算、递推与递归'
+                    },
+                    { 
+                        path: 'advanced/第六章 基础算法/6.2 前缀和、差分、二分.mp4', 
+                        title: '6.2 前缀和、差分、二分'
+                    },
+                    { 
+                        path: 'advanced/第六章 基础算法/6.3 排序和RMQ.mp4', 
+                        title: '6.3 排序和RMQ'
+                    }
+                ];
+                
+                // 算法进阶课
+                videoLibrary.expert = {
+                    graph: [
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.1 网络流的基本概念.mp4', title: '1.1.1 网络流的基本概念' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.2.1 最大流之算法模板、二分图匹配、上界可行流（一）.mp4', title: '1.1.2.1 最大流之算法模板、二分图匹配、上界可行流（一）' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.2.2 最大流之上界可行流（二）、多源汇、关建边.mp4', title: '1.1.2.2 最大流之上界可行流（二）、多源汇、关建边' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.2.3 最大流之最大流判定、拆点（一）.mp4', title: '1.1.2.3 最大流之最大流判定、拆点（一）' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.2.4 最大流之拆点（二）、建图、最小割模板及应用.mp4', title: '1.1.2.4 最大流之拆点（二）、建图、最小割模板及应用' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.3.2 最小割之最大权闭合图、最大密度子图.mp4', title: '1.1.3.2 最小割之最大权闭合图、最大密度子图' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.3.3 最小割之最小权覆盖集、最大权独立集.mp4', title: '1.1.3.3 最小割之最小权覆盖集、最大权独立集' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.3.4 最小割之建图实战、费用流基本概念.mp4', title: '1.1.3.4 最小割之建图实战、费用流基本概念' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.4.2 费用流之模板、直接应用、二分图最优匹配.mp4', title: '1.1.4.2 费用流之模板、直接应用、二分图最优匹配' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.1.4.3 费用流之网格图模型、拆点、上下界可行流.mp4', title: '1.1.4.3 费用流之网格图模型、拆点、上下界可行流' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.2 2-SAT.mp4', title: '1.2 2-SAT' },
+                        { path: '算法进阶课/算法进阶/第一章 图论/1.3 朱刘算法和Prufer编码.mp4', title: '1.3 朱刘算法和Prufer编码' }
+                    ],
+                    dataStructure: [
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.1 Splay（一）.mp4', title: '2.1 Splay（一）' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.2 Splay（二）.mp4', title: '2.2 Splay（二）' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.3 树套树.mp4', title: '2.3 树套树' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.4 分块之基本思想、块状链表.mp4', title: '2.4 分块之基本思想、块状链表' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.5 莫队（一）.mp4', title: '2.5 莫队（一）' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.6 莫队（二）.mp4', title: '2.6 莫队（二）' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.7 树链剖分.mp4', title: '2.7 树链剖分' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.8 动态树.mp4', title: '2.8 动态树' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.9 Dancing Links（一）.mp4', title: '2.9 Dancing Links（一）' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.10 Dancing Links（二）.mp4', title: '2.10 Dancing Links（二）' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.11 左偏树.mp4', title: '2.11 左偏树' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.12 后缀数组.mp4', title: '2.12 后缀数组' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.13 后缀自动机.mp4', title: '2.13 后缀自动机' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.14 点分治和点分树.mp4', title: '2.14 点分治和点分树' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.15 CDQ分治.mp4', title: '2.15 CDQ分治' },
+                        { path: '算法进阶课/算法进阶/第二章 数据结构/2.16 仙人掌.mp4', title: '2.16 仙人掌' }
+                    ],
+                    dp: [
+                        { path: '算法进阶课/算法进阶/第三章 动态规划/3.1 基环数DP.mp4', title: '3.1 基环数DP' },
+                        { path: '算法进阶课/算法进阶/第三章 动态规划/3.2 四边形不等式.mp4', title: '3.2 四边形不等式' },
+                        { path: '算法进阶课/算法进阶/第三章 动态规划/3.3 插头DP.mp4', title: '3.3 插头DP' }
+                    ],
+                    geometry: [
+                        { path: '算法进阶课/算法进阶/第四章 计算几何/4.1 基础知识.mp4', title: '4.1 基础知识' },
+                        { path: '算法进阶课/算法进阶/第四章 计算几何/4.2 凸包与半平面交.mp4', title: '4.2 凸包与半平面交' },
+                        { path: '算法进阶课/算法进阶/第四章 计算几何/4.3 最小圆覆盖、三维计算几何基础、三维凸包.mp4', title: '4.3 最小圆覆盖、三维计算几何基础、三维凸包' },
+                        { path: '算法进阶课/算法进阶/第四章 计算几何/4.4 旋转卡壳、三角剖分.mp4', title: '4.4 旋转卡壳、三角剖分' },
+                        { path: '算法进阶课/算法进阶/第四章 计算几何/4.5 扫描线、自适应辛普森积分.mp4', title: '4.5 扫描线、自适应辛普森积分' }
+                    ],
+                    math: [
+                        { path: '算法进阶课/算法进阶/第五章 数学/5.1 莫比乌斯反演和积性函数.mp4', title: '5.1 莫比乌斯反演和积性函数' },
+                        { path: '算法进阶课/算法进阶/第五章 数学/5.2 BSGS和FFT.mp4', title: '5.2 BSGS和FFT' },
+                        { path: '算法进阶课/算法进阶/第五章 数学/5.3 生成函数、Burnside引理和Polya定理.mp4', title: '5.3 生成函数、Burnside引理和Polya定理' },
+                        { path: '算法进阶课/算法进阶/第五章 数学/5.4 斯特林数、线性基.mp4', title: '5.4 斯特林数、线性基' }
+                    ],
+                    search: [
+                        { path: '算法进阶课/算法进阶/第六章 搜索/6.1 模拟退火、爬山法.mp4', title: '6.1 模拟退火、爬山法' }
+                    ],
+                    basicAlgo: [
+                        { path: '算法进阶课/算法进阶/第七章 基础算法/7.1 启发式合并、Manacher算法.mp4', title: '7.1 启发式合并、Manacher算法' },
+                        { path: '算法进阶课/算法进阶/第七章 基础算法/7.2 最小表示法、构造、打表.mp4', title: '7.2 最小表示法、构造、打表' }
+                    ]
+                };
+                
+                // 替换目录路径中的分隔符，适应操作系统
+                function normalizeVideoPath(path) {
+                    return path.split('/').join('\\');  // 在Windows上使用反斜杠
+                }
+                
+                // 规范化路径
+                function normalizeAllPaths() {
+                    // 语法课
+                    videoLibrary.syntax = videoLibrary.syntax.map(video => {
+                        return {
+                            ...video,
+                            path: normalizeVideoPath(video.path).replace('language', '语法课基础')
+                        };
+                    });
+                    
+                    // 基础课
+                    videoLibrary.basic = videoLibrary.basic.map(video => {
+                        return {
+                            ...video,
+                            path: normalizeVideoPath(video.path).replace('basic', '算法基础课')
+                        };
+                    });
+                    
+                    // 提高课
+                    for (const [key, videos] of Object.entries(videoLibrary.advanced)) {
+                        videoLibrary.advanced[key] = videos.map(video => {
+                            return {
+                                ...video,
+                                path: normalizeVideoPath(video.path).replace('advanced', '算法提高课')
+                            };
+                        });
+                    }
+                    
+                    // 进阶课
+                    for (const [chapter, videos] of Object.entries(videoLibrary.expert)) {
+                        videoLibrary.expert[chapter] = videos.map(video => {
+                            return {
+                                ...video,
+                                path: normalizeVideoPath(video.path)
+                            };
+                        });
+                    }
+                }
+                
+                normalizeAllPaths();
+            }
+            
+            // 渲染侧边栏
+            function renderSidebar() {
+                // 渲染语法课
+                renderCourseVideos('category-syntax', '.courses-container ul', videoLibrary.syntax);
+                
+                // 渲染基础课
+                renderCourseVideos('category-basic', '.courses-container ul', videoLibrary.basic);
+                
+                // 渲染提高课
+                renderAdvancedCourseVideos();
+                
+                // 渲染进阶课
+                renderExpertCourseVideos();
+            }
+            
+            // 渲染课程视频
+            function renderCourseVideos(containerId, selector, videos) {
+                const container = document.querySelector(`#${containerId} ${selector}`);
+                if (!container) return;
+                
+                videos.forEach((video, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'nav-item';
+                    li.setAttribute('data-path', video.path);
+                    
+                    li.innerHTML = `
+                        <div class="video-details">
+                            <span class="video-title">${video.title}</span>
+                            <span class="now-playing">▶ 正在播放</span>
+                        </div>
+                    `;
+                    
+                    container.appendChild(li);
+                });
+            }
+            
+            // 渲染算法提高课视频
+            function renderAdvancedCourseVideos() {
+                // 渲染动态规划章节
+                const dpContainer = document.querySelector('#category-advanced .courses-container .course:nth-child(1) .videos-container');
+                if (dpContainer) {
+                    videoLibrary.advanced.dp.forEach((video) => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        dpContainer.appendChild(li);
+                    });
+                }
+                
+                // 渲染搜索章节
+                const searchContainer = document.querySelector('#category-advanced .courses-container .course:nth-child(2) .videos-container');
+                if (searchContainer) {
+                    videoLibrary.advanced.search.forEach((video) => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        searchContainer.appendChild(li);
+                    });
+                }
+                
+                // 渲染图论章节
+                const graphContainer = document.querySelector('#category-advanced .courses-container .course:nth-child(3) .videos-container');
+                if (graphContainer) {
+                    videoLibrary.advanced.graph.forEach((video) => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        graphContainer.appendChild(li);
+                    });
+                }
+                
+                // 渲染数据结构章节
+                const dataStructureContainer = document.querySelector('#category-advanced .courses-container .course:nth-child(4) .videos-container');
+                if (dataStructureContainer) {
+                    videoLibrary.advanced.dataStructure.forEach((video) => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        dataStructureContainer.appendChild(li);
+                    });
+                }
+                
+                // 渲染数学知识章节
+                const mathContainer = document.querySelector('#category-advanced .courses-container .course:nth-child(5) .videos-container');
+                if (mathContainer) {
+                    videoLibrary.advanced.math.forEach((video) => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        mathContainer.appendChild(li);
+                    });
+                }
+                
+                // 渲染基础算法章节
+                const basicAlgoContainer = document.querySelector('#category-advanced .courses-container .course:nth-child(6) .videos-container');
+                if (basicAlgoContainer) {
+                    videoLibrary.advanced.basicAlgo.forEach((video) => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        basicAlgoContainer.appendChild(li);
+                    });
+                }
+            }
+            
+            // 渲染算法进阶课视频
+            function renderExpertCourseVideos() {
+                const expertContainer = document.querySelector('#category-expert .courses-container');
+                if (!expertContainer) return;
+                
+                // 清空现有内容
+                expertContainer.innerHTML = '';
+                
+                // 定义章节
+                const chapters = [
+                    { id: 'graph', name: '第一章 图论', videos: videoLibrary.expert.graph },
+                    { id: 'dataStructure', name: '第二章 数据结构', videos: videoLibrary.expert.dataStructure },
+                    { id: 'dp', name: '第三章 动态规划', videos: videoLibrary.expert.dp },
+                    { id: 'geometry', name: '第四章 计算几何', videos: videoLibrary.expert.geometry },
+                    { id: 'math', name: '第五章 数学', videos: videoLibrary.expert.math },
+                    { id: 'search', name: '第六章 搜索', videos: videoLibrary.expert.search },
+                    { id: 'basicAlgo', name: '第七章 基础算法', videos: videoLibrary.expert.basicAlgo }
+                ];
+                
+                // 为每个章节创建元素
+                chapters.forEach(chapter => {
+                    // 创建课程容器
+                    const courseDiv = document.createElement('div');
+                    courseDiv.className = 'course collapsed';
+                    courseDiv.id = `expert-${chapter.id}`;
+                    
+                    // 创建课程头部
+                    const courseHeader = document.createElement('div');
+                    courseHeader.className = 'course-header';
+                    courseHeader.innerHTML = `
+                        <span class="toggle-icon">▼</span>
+                        <span class="course-name">${chapter.name}</span>
+                    `;
+                    
+                    // 创建视频容器
+                    const videosContainer = document.createElement('ul');
+                    videosContainer.className = 'videos-container';
+                    
+                    // 添加视频
+                    chapter.videos.forEach(video => {
+                        const li = document.createElement('li');
+                        li.className = 'nav-item';
+                        li.setAttribute('data-path', video.path);
+                        
+                        li.innerHTML = `
+                            <div class="video-details">
+                                <span class="video-title">${video.title}</span>
+                                <span class="now-playing">▶ 正在播放</span>
+                            </div>
+                        `;
+                        
+                        videosContainer.appendChild(li);
+                    });
+                    
+                    // 组合元素
+                    courseDiv.appendChild(courseHeader);
+                    courseDiv.appendChild(videosContainer);
+                    expertContainer.appendChild(courseDiv);
+                });
+
+                // 在元素完全添加到DOM后，重新绑定所有的事件监听器
+                // 这样可以确保新添加的元素都能正确响应点击事件
+                setupEventListeners();
+            }
+            
+            // 设置事件监听器
+            function setupEventListeners() {
+                // 分类展开/折叠
+                const categoryHeaders = document.querySelectorAll('.category-header');
+                categoryHeaders.forEach(header => {
+                    // 移除现有事件，防止重复绑定
+                    const oldHeader = header.cloneNode(true);
+                    header.parentNode.replaceChild(oldHeader, header);
+                    
+                    oldHeader.addEventListener('click', () => {
+                        const category = oldHeader.parentElement;
+                        category.classList.toggle('collapsed');
+                    });
+                });
+                
+                // 课程展开/折叠
+                const courseHeaders = document.querySelectorAll('.course-header');
+                courseHeaders.forEach(header => {
+                    // 移除现有事件，防止重复绑定
+                    const oldHeader = header.cloneNode(true);
+                    header.parentNode.replaceChild(oldHeader, header);
+                    
+                    oldHeader.addEventListener('click', () => {
+                        const course = oldHeader.parentElement;
+                        course.classList.toggle('collapsed');
+                    });
+                });
+                
+                // 视频选择
+                const navItems = document.querySelectorAll('.nav-item');
+                navItems.forEach(item => {
+                    // 移除现有事件，防止重复绑定
+                    const oldItem = item.cloneNode(true);
+                    item.parentNode.replaceChild(oldItem, item);
+                    
+                    oldItem.addEventListener('click', () => {
+                        const videoPath = oldItem.getAttribute('data-path');
+                        loadVideo(videoPath);
+                        updateActiveNavItem(oldItem);
+                    });
+                });
+                
+                // 上传单个视频
+                if (videoUpload) {
+                    videoUpload.addEventListener('change', function(event) {
+                        handleVideoFileUpload(event);
+                    });
+                }
+                
+                // 检查视频目录按钮
+                if (browseDirectoryButton) {
+                    browseDirectoryButton.addEventListener('click', () => {
+                        alert('请点击左侧目录中的视频项目来播放视频。如果视频文件没有正确显示，请确认目录结构是否与预期一致。');
+                    });
+                }
+                
+                // 搜索功能
+                if (searchInput) {
+                    // 移除现有事件，防止重复绑定
+                    searchInput.removeEventListener('input', handleSearch);
+                    searchInput.addEventListener('input', handleSearch);
+                }
+            }
+            
+            // 加载视频
+            function loadVideo(videoPath) {
+                if (!videoPath) return;
+                
+                // 设置新的当前视频
+                videoLibrary.currentVideo = videoPath;
+                
+                // 构建完整的视频路径 (相对路径)
+                const fullPath = `${videoLibrary.baseDirectory}\\${videoPath}`;
+                
+                // 更新视频源
+                videoPlayer.src = fullPath;
+                videoPlayer.style.display = 'block';
+                videoOverlay.style.display = 'none';
+                videoPlayer.load();
+                
+                // 更新视频状态
+                updateVideoStatus(videoPath, 'in-progress');
+            }
+            
+            // 更新活动导航项
+            function updateActiveNavItem(activeItem) {
+                // 移除所有的 active 类
+                const allItems = document.querySelectorAll('.nav-item');
+                allItems.forEach(item => item.classList.remove('active'));
+                
+                // 添加 active 类到当前项
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                }
+            }
+            
+            // 处理视频文件上传
+            function handleVideoFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const fileURL = URL.createObjectURL(file);
+                
+                // 如果已有视频URL，先释放它
+                if (videoPlayer.src && videoPlayer.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(videoPlayer.src);
+                }
+                
+                // 设置新视频
+                videoPlayer.src = fileURL;
+                videoPlayer.style.display = 'block';
+                videoOverlay.style.display = 'none';
+                videoPlayer.load();
+                
+                // 清除任何导航项的活动状态
+                const activeItems = document.querySelectorAll('.nav-item.active');
+                activeItems.forEach(item => item.classList.remove('active'));
+                
+                // 临时视频路径
+                videoLibrary.currentVideo = `temp_${Date.now()}`;
+            }
+            
+            // 搜索功能
+            function handleSearch() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const allItems = document.querySelectorAll('.nav-item');
+                
+                // 如果搜索框为空，则展示所有内容并恢复折叠状态
+                if (searchTerm === '') {
+                    allItems.forEach(item => {
+                        item.style.display = '';
+                    });
+                    
+                    // 恢复类别和课程的折叠状态
+                    document.querySelectorAll('.course-category, .course').forEach(item => {
+                        if (item.classList.contains('was-collapsed')) {
+                            item.classList.add('collapsed');
+                            item.classList.remove('was-collapsed');
+                        }
+                    });
+                    return;
+                }
+                
+                // 记住当前的折叠状态
+                document.querySelectorAll('.course-category.collapsed, .course.collapsed').forEach(item => {
+                    item.classList.remove('collapsed');
+                    item.classList.add('was-collapsed');
+                });
+                
+                // 搜索视频
+                allItems.forEach(item => {
+                    const title = item.querySelector('.video-title').textContent.toLowerCase();
+                    if (title.includes(searchTerm)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+            
+            // 从本地存储加载所有笔记
+            function loadNotesFromLocalStorage() {
+                const savedNotes = localStorage.getItem('acwingVideoNotes');
+                if (savedNotes) {
+                    videoLibrary.videoNotes = JSON.parse(savedNotes);
+                }
+            }
+            
+            // 更新视频状态
+            function updateVideoStatus(videoPath, status) {
+                const item = document.querySelector(`.nav-item[data-path="${videoPath}"]`);
+                if (!item) return;
+            }
+            
+            // 视频播放完成处理
+            videoPlayer.addEventListener('ended', function() {
+                if (videoLibrary.currentVideo) {
+                    updateVideoStatus(videoLibrary.currentVideo, 'completed');
+                }
+            });
+            
+            // Debounce 函数 - 用于延迟执行频繁操作
+            function debounce(func, wait) {
+                let timeout;
+                return function() {
+                    const context = this, args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        func.apply(context, args);
+                    }, wait);
+                };
+            }
+            
+            // 初始化应用
+            init();
+        });
+    </script>
+</body>
+</html>
